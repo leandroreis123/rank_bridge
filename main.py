@@ -19,8 +19,11 @@ if not os.path.exists(ARQUIVO):
 
 
 def carregar_dados():
-    with open(ARQUIVO, "r", encoding="utf-8") as arquivo:
-        return json.load(arquivo)
+    try:
+        with open(ARQUIVO, "r", encoding="utf-8") as arquivo:
+            return json.load(arquivo)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
 
 
 def salvar_dados(dados):
@@ -42,7 +45,7 @@ def sincronizar():
     user_id = str(dados.get("user_id"))
     sonhos = dados.get("sonhos")
 
-    if not user_id or sonhos is None:
+    if not user_id or user_id == "None" or sonhos is None:
         return jsonify({
             "sucesso": False,
             "erro": "user_id ou sonhos não informado"
@@ -50,8 +53,7 @@ def sincronizar():
 
     try:
         sonhos = int(sonhos)
-
-    except:
+    except (ValueError, TypeError):
         return jsonify({
             "sucesso": False,
             "erro": "Quantidade de Sonhos inválida"
@@ -94,8 +96,12 @@ def inicio():
 # =========================
 
 intents = discord.Intents.default()
-intents.members = True
+
+# Necessário para comandos que usam prefixo !
 intents.message_content = True
+
+# Necessário para informações de membros
+intents.members = True
 
 bot = commands.Bot(
     command_prefix="!",
@@ -154,25 +160,27 @@ class RankView(discord.ui.View):
 
                 nome = user.display_name
 
-            except:
+            except Exception as erro:
+
+                print(
+                    f"Não foi possível buscar usuário "
+                    f"{user_id}: {erro}"
+                )
 
                 nome = f"Usuário {user_id}"
 
 
+            # Medalhas
             if posicao == 1:
-
                 medalha = "🥇"
 
             elif posicao == 2:
-
                 medalha = "🥈"
 
             elif posicao == 3:
-
                 medalha = "🥉"
 
             else:
-
                 medalha = f"`#{posicao}`"
 
 
@@ -183,7 +191,6 @@ class RankView(discord.ui.View):
 
 
         if not descricao:
-
             descricao = "Nenhum usuário encontrado."
 
 
@@ -212,7 +219,6 @@ class RankView(discord.ui.View):
     ):
 
         if self.pagina > 1:
-
             self.pagina -= 1
 
         self.atualizar_botoes()
@@ -237,7 +243,6 @@ class RankView(discord.ui.View):
     ):
 
         if self.pagina < self.total_paginas:
-
             self.pagina += 1
 
         self.atualizar_botoes()
@@ -258,6 +263,11 @@ class RankView(discord.ui.View):
 async def rank(ctx):
 
     try:
+
+        print(
+            f"Comando !rank usado por "
+            f"{ctx.author} ({ctx.author.id})"
+        )
 
         carteiras = carregar_dados()
 
@@ -297,7 +307,7 @@ async def rank(ctx):
 
     except Exception as erro:
 
-        print("Erro no !rank:", erro)
+        print(f"Erro no !rank: {erro}")
 
         embed = discord.Embed(
             title="╭・❌・ERRO",
@@ -318,8 +328,27 @@ async def rank(ctx):
 @bot.event
 async def on_ready():
 
-    print(f"Bot conectado como {bot.user}")
+    print("=" * 50)
+    print("BOT CONECTADO COM SUCESSO!")
+    print(f"Nome: {bot.user}")
     print(f"ID: {bot.user.id}")
+    print(f"Servidores: {len(bot.guilds)}")
+    print("=" * 50)
+
+
+# =========================
+# EVENTO DE ERRO DE COMANDO
+# =========================
+
+@bot.event
+async def on_command_error(ctx, error):
+
+    if isinstance(error, commands.CommandNotFound):
+        return
+
+    print(
+        f"Erro no comando {ctx.command}: {error}"
+    )
 
 
 # =========================
@@ -330,14 +359,23 @@ if __name__ == "__main__":
 
     token = os.environ.get("DISCORD_TOKEN")
 
+
+    # =========================
+    # VERIFICAR TOKEN
+    # =========================
+
     if not token:
 
         print(
-            "ERRO CRÍTICO: DISCORD_TOKEN não configurado "
-            "nas variáveis de ambiente."
+            "ERRO CRÍTICO: DISCORD_TOKEN "
+            "não configurado nas variáveis de ambiente."
         )
 
     else:
+
+        print("DISCORD_TOKEN encontrado.")
+        print("Iniciando bot do Discord...")
+
 
         def rodar_bot():
 
@@ -348,8 +386,10 @@ if __name__ == "__main__":
             except Exception as erro:
 
                 print(
-                    f"Erro ao iniciar o Bot do Discord: {erro}"
+                    "ERRO AO INICIAR O BOT DO DISCORD:"
                 )
+
+                print(erro)
 
 
         bot_thread = Thread(
@@ -361,7 +401,7 @@ if __name__ == "__main__":
 
 
     # =========================
-    # FLASK
+    # INICIAR FLASK
     # =========================
 
     port = int(
