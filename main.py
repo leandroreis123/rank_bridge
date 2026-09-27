@@ -307,35 +307,27 @@ async def on_ready():
 
 
 # =========================
-# RODAR FLASK
-# =========================
-
-def iniciar_flask():
-
-    port = int(
-        os.environ.get("PORT", 5000)
-    )
-
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
-
-
-# =========================
-# INICIAR TUDO
+# INICIAR TUDO (CORRIGIDO)
 # =========================
 
 if __name__ == "__main__":
-
-    Thread(
-        target=iniciar_flask,
-        daemon=True
-    ).start()
-
     token = os.environ.get("DISCORD_TOKEN")
 
     if not token:
-        print("ERRO: DISCORD_TOKEN não configurado.")
+        print("ERRO CRÍTICO: DISCORD_TOKEN não configurado nas variáveis de ambiente.")
     else:
-        bot.run(token)
+        # Função para rodar o Bot em uma thread separada de forma segura
+        def rodar_bot():
+            try:
+                bot.run(token)
+            except Exception as e:
+                print(f"Erro ao iniciar o Bot do Discord: {e}")
+
+        # Thread dedicada para o Bot (não-daemon para persistência estável)
+        bot_thread = Thread(target=rodar_bot)
+        bot_thread.start()
+
+    # O Flask assume a thread principal. O Render consegue ler a PORT imediatamente.
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Iniciando Flask na porta {port}...")
+    app.run(host="0.0.0.0", port=port)
