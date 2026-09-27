@@ -95,6 +95,7 @@ def inicio():
 
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True
 
 bot = commands.Bot(
     command_prefix="!",
@@ -115,13 +116,19 @@ class RankView(discord.ui.View):
         self.ranking = ranking
         self.pagina = 1
 
+        # 5 usuários por página
+        self.total_paginas = max(
+            1,
+            (len(self.ranking) + 4) // 5
+        )
+
         self.atualizar_botoes()
 
 
     def atualizar_botoes(self):
 
         self.anterior.disabled = self.pagina <= 1
-        self.proximo.disabled = self.pagina >= 20
+        self.proximo.disabled = self.pagina >= self.total_paginas
 
 
     async def criar_embed(self):
@@ -139,6 +146,7 @@ class RankView(discord.ui.View):
         ):
 
             try:
+
                 user = bot.get_user(int(user_id))
 
                 if user is None:
@@ -147,19 +155,24 @@ class RankView(discord.ui.View):
                 nome = user.display_name
 
             except:
+
                 nome = f"Usuário {user_id}"
 
 
             if posicao == 1:
+
                 medalha = "🥇"
 
             elif posicao == 2:
+
                 medalha = "🥈"
 
             elif posicao == 3:
+
                 medalha = "🥉"
 
             else:
+
                 medalha = f"`#{posicao}`"
 
 
@@ -170,6 +183,7 @@ class RankView(discord.ui.View):
 
 
         if not descricao:
+
             descricao = "Nenhum usuário encontrado."
 
 
@@ -180,7 +194,7 @@ class RankView(discord.ui.View):
         )
 
         embed.set_footer(
-            text=f"Página {self.pagina}/20 • Top 100"
+            text=f"Página {self.pagina}/{self.total_paginas} • Top 100"
         )
 
         return embed
@@ -198,6 +212,7 @@ class RankView(discord.ui.View):
     ):
 
         if self.pagina > 1:
+
             self.pagina -= 1
 
         self.atualizar_botoes()
@@ -221,7 +236,8 @@ class RankView(discord.ui.View):
         button: discord.ui.Button
     ):
 
-        if self.pagina < 20:
+        if self.pagina < self.total_paginas:
+
             self.pagina += 1
 
         self.atualizar_botoes()
@@ -307,27 +323,56 @@ async def on_ready():
 
 
 # =========================
-# INICIAR TUDO (CORRIGIDO)
+# INICIAR TUDO
 # =========================
 
 if __name__ == "__main__":
+
     token = os.environ.get("DISCORD_TOKEN")
 
     if not token:
-        print("ERRO CRÍTICO: DISCORD_TOKEN não configurado nas variáveis de ambiente.")
-    else:
-        # Função para rodar o Bot em uma thread separada de forma segura
-        def rodar_bot():
-            try:
-                bot.run(token)
-            except Exception as e:
-                print(f"Erro ao iniciar o Bot do Discord: {e}")
 
-        # Thread dedicada para o Bot (não-daemon para persistência estável)
-        bot_thread = Thread(target=rodar_bot)
+        print(
+            "ERRO CRÍTICO: DISCORD_TOKEN não configurado "
+            "nas variáveis de ambiente."
+        )
+
+    else:
+
+        def rodar_bot():
+
+            try:
+
+                bot.run(token)
+
+            except Exception as erro:
+
+                print(
+                    f"Erro ao iniciar o Bot do Discord: {erro}"
+                )
+
+
+        bot_thread = Thread(
+            target=rodar_bot,
+            daemon=True
+        )
+
         bot_thread.start()
 
-    # O Flask assume a thread principal. O Render consegue ler a PORT imediatamente.
-    port = int(os.environ.get("PORT", 5000))
-    print(f"Iniciando Flask na porta {port}...")
-    app.run(host="0.0.0.0", port=port)
+
+    # =========================
+    # FLASK
+    # =========================
+
+    port = int(
+        os.environ.get("PORT", 5000)
+    )
+
+    print(
+        f"Iniciando Flask na porta {port}..."
+    )
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
