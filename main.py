@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 import json
 import os
+import sys
+import traceback
 import discord
 from discord.ext import commands
 from threading import Thread
@@ -164,7 +166,8 @@ class RankView(discord.ui.View):
 
                 print(
                     f"Não foi possível buscar usuário "
-                    f"{user_id}: {erro}"
+                    f"{user_id}: {erro}",
+                    flush=True
                 )
 
                 nome = f"Usuário {user_id}"
@@ -266,7 +269,8 @@ async def rank(ctx):
 
         print(
             f"Comando !rank usado por "
-            f"{ctx.author} ({ctx.author.id})"
+            f"{ctx.author} ({ctx.author.id})",
+            flush=True
         )
 
         carteiras = carregar_dados()
@@ -305,9 +309,10 @@ async def rank(ctx):
         )
 
 
-    except Exception as erro:
+    except Exception:
 
-        print(f"Erro no !rank: {erro}")
+        print("Erro no !rank:", flush=True)
+        traceback.print_exc()
 
         embed = discord.Embed(
             title="╭・❌・ERRO",
@@ -328,12 +333,12 @@ async def rank(ctx):
 @bot.event
 async def on_ready():
 
-    print("=" * 50)
-    print("BOT CONECTADO COM SUCESSO!")
-    print(f"Nome: {bot.user}")
-    print(f"ID: {bot.user.id}")
-    print(f"Servidores: {len(bot.guilds)}")
-    print("=" * 50)
+    print("=" * 50, flush=True)
+    print("BOT CONECTADO COM SUCESSO!", flush=True)
+    print(f"Nome: {bot.user}", flush=True)
+    print(f"ID: {bot.user.id}", flush=True)
+    print(f"Servidores: {len(bot.guilds)}", flush=True)
+    print("=" * 50, flush=True)
 
 
 # =========================
@@ -346,9 +351,8 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
 
-    print(
-        f"Erro no comando {ctx.command}: {error}"
-    )
+    print(f"Erro no comando {ctx.command}: {error}", flush=True)
+    traceback.print_exc()
 
 
 # =========================
@@ -368,13 +372,14 @@ if __name__ == "__main__":
 
         print(
             "ERRO CRÍTICO: DISCORD_TOKEN "
-            "não configurado nas variáveis de ambiente."
+            "não configurado nas variáveis de ambiente.",
+            flush=True
         )
 
     else:
 
-        print("DISCORD_TOKEN encontrado.")
-        print("Iniciando bot do Discord...")
+        print("DISCORD_TOKEN encontrado.", flush=True)
+        print("Iniciando bot do Discord...", flush=True)
 
 
         def rodar_bot():
@@ -383,13 +388,16 @@ if __name__ == "__main__":
 
                 bot.run(token)
 
-            except Exception as erro:
+            except Exception:
 
                 print(
-                    "ERRO AO INICIAR O BOT DO DISCORD:"
+                    "ERRO AO INICIAR O BOT DO DISCORD:",
+                    flush=True
                 )
 
-                print(erro)
+                # Isso imprime o erro REAL, completo,
+                # em vez de só a mensagem genérica.
+                traceback.print_exc()
 
 
         bot_thread = Thread(
@@ -409,7 +417,8 @@ if __name__ == "__main__":
     )
 
     print(
-        f"Iniciando Flask na porta {port}..."
+        f"Iniciando Flask na porta {port}...",
+        flush=True
     )
 
     app.run(
