@@ -128,6 +128,11 @@ def salvar_perfil(user_id, perfil):
     gravar_arquivo(ARQUIVO_PERFIS, perfis)
 
 
+# Guarda o último valor enviado de cada usuário, para não regravar igual
+ultimo_sonhos = {}
+ultimo_perfil = {}
+
+
 @app.post("/sync")
 def sincronizar():
 
@@ -157,17 +162,18 @@ def sincronizar():
         }), 400
 
     # Nome e foto são opcionais: se o BDFD mandar, guardamos
-    nome = dados.get("nome")
-    avatar = dados.get("avatar")
+    nome = str(dados.get("nome") or "")[:40]
+    avatar = str(dados.get("avatar") or "")[:300]
 
     try:
-        salvar_carteira(user_id, sonhos)
+        # Só grava no banco se algo mudou (economiza o limite grátis)
+        if ultimo_sonhos.get(user_id) != sonhos:
+            salvar_carteira(user_id, sonhos)
+            ultimo_sonhos[user_id] = sonhos
 
-        if nome or avatar:
-            salvar_perfil(user_id, {
-                "nome": str(nome or "")[:40],
-                "avatar": str(avatar or "")[:300]
-            })
+        if (nome or avatar) and ultimo_perfil.get(user_id) != (nome, avatar):
+            salvar_perfil(user_id, {"nome": nome, "avatar": avatar})
+            ultimo_perfil[user_id] = (nome, avatar)
 
     except Exception as erro:
         print(f"Erro ao salvar: {erro}", flush=True)
@@ -299,6 +305,39 @@ def p(valor):
 @lru_cache(maxsize=32)
 def fonte(tamanho):
     return ImageFont.load_default(size=tamanho)
+
+
+UNIDADES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"]
+
+
+def abreviar(numero):
+    """1234567 -> 1.23 M   |   numeros gigantes -> 999.99 Oc"""
+
+    sinal = "-" if numero < 0 else ""
+    numero = abs(numero)
+
+    if numero < 1000:
+        return f"{sinal}{numero}"
+
+    grupo = min((len(str(numero)) - 1) // 3, len(UNIDADES) - 1)
+    divisor = 10 ** (3 * grupo)
+
+    inteiro = numero // divisor
+    decimais = (numero * 100 // divisor) % 100
+
+    return f"{sinal}{inteiro}.{decimais:02d} {UNIDADES[grupo]}"
+
+
+def texto_sonhos(d, sonhos, largura_max):
+    """Devolve (texto, tamanho_da_fonte) que cabe no cartão."""
+
+    completo = f"{sonhos:,} Sonhos"
+
+    for tamanho in (26, 23, 20, 18):
+        if d.textlength(completo, font=fonte(p(tamanho))) <= largura_max:
+            return completo, p(tamanho)
+
+    return f"{abreviar(sonhos)} Sonhos", p(26)
 
 
 def limpar_nome(nome, user_id):
@@ -513,10 +552,12 @@ def gerar_imagem(itens, pagina, total_paginas):
             anchor="lm"
         )
 
+        texto, tamanho_fonte = texto_sonhos(d, sonhos, x1 - p(28) - tx)
+
         d.text(
             (tx, cy + p(22)),
-            f"{sonhos:,} Sonhos",
-            font=fonte(p(26)),
+            texto,
+            font=fonte(tamanho_fonte),
             fill=TEXTO_SONHOS,
             anchor="lm"
         )
