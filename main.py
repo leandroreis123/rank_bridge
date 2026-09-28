@@ -627,6 +627,20 @@ def ranking_imagem():
     )
 
 
+@app.get("/rank_paginas")
+def rank_paginas():
+    """
+    Devolve só o número total de páginas (5 usuarios por página, Top 100).
+    O BDFD usa isso para desligar o botão Próximo na última página.
+    """
+
+    total_usuarios = min(len(carregar_dados()), 100)
+
+    total = max(1, (total_usuarios + 4) // 5)
+
+    return str(total), 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
 @app.get("/")
 def inicio():
     tipo = "permanente (Upstash)" if USAR_UPSTASH else "TEMPORARIO (arquivo)"
