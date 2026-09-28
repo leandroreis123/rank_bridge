@@ -79,6 +79,78 @@ def ranking():
     return jsonify(ranking[:100])
 
 
+@app.get("/rank_texto")
+def ranking_texto():
+    """
+    Devolve o ranking já formatado em texto, pronto para o BDFD
+    colocar dentro de um embed. Uso: /rank_texto?pagina=2
+    """
+
+    carteiras = carregar_dados()
+
+    ranking = sorted(
+        carteiras.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:100]
+
+    cabecalho = {"Content-Type": "text/plain; charset=utf-8"}
+
+    if not ranking:
+        return (
+            "⚠️ **Ranking vazio!**\nNinguém foi sincronizado ainda.",
+            200,
+            cabecalho
+        )
+
+    por_pagina = 5
+
+    total_paginas = max(
+        1,
+        (len(ranking) + por_pagina - 1) // por_pagina
+    )
+
+    try:
+        pagina = int(request.args.get("pagina", 1))
+    except (ValueError, TypeError):
+        pagina = 1
+
+    pagina = max(1, min(pagina, total_paginas))
+
+    inicio = (pagina - 1) * por_pagina
+    fim = inicio + por_pagina
+
+    linhas = []
+
+    for posicao, (user_id, sonhos) in enumerate(
+        ranking[inicio:fim],
+        start=inicio + 1
+    ):
+
+        if posicao == 1:
+            medalha = "🥇"
+        elif posicao == 2:
+            medalha = "🥈"
+        elif posicao == 3:
+            medalha = "🥉"
+        else:
+            medalha = f"`#{posicao}`"
+
+        linhas.append(
+            f"{medalha} <@{user_id}>\n"
+            f"> 💰 `{sonhos:,}` Sonhos"
+        )
+
+    texto = "\n\n".join(linhas)
+
+    texto += (
+        f"\n\n*Página {pagina}/{total_paginas} • Top 100 • "
+        f"use !rank 2, !rank 3...*"
+    )
+
+    return texto, 200, cabecalho
+
+
 @app.get("/")
 def inicio():
     return "Bridge BDFD → Python funcionando!"
